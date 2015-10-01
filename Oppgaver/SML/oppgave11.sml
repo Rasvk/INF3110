@@ -1,0 +1,1 @@
+fun mulall(v: int, l: int list) = List.map (fn x => x * v) l;
