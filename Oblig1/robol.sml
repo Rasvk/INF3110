@@ -16,8 +16,10 @@ and bExp
 (* Create buffer for storing variables *)
 type variable = string * exp
 type buffer = variable list 
+(* Cons the new variable to the start of the buffer *)
 fun buf_set (b: buffer, (k, v): variable) = 
   (k, v)::List.filter (fn (k1, v1) => not (k = k1)) b
+(* Search buffer for variable with the correct key *)
 fun buf_get ([]: buffer, key: string) = NONE
   | buf_get ((k, v)::b: buffer, key: string) =
     if k = key then SOME(v) else buf_get(b, key)
@@ -70,7 +72,7 @@ exception OutOfBoundsException of position
 
 (* Check if position is within the grid *)
 fun checkBounds((x, y): grid, (posX, posY): position) =
-  if posX > 0 andalso posY > 0 andalso posX < x andalso posY < y 
+  if posX >= 0 andalso posY >= 0 andalso posX <= x andalso posY <= y 
     then (posX, posY): position else raise OutOfBoundsException (posX, posY)
 
 (* Evaluate a Statement *)
@@ -79,22 +81,22 @@ fun move (g: grid, (x0, y0): position, n: int, d: direction) = case d of
   | South => checkBounds(g, (x0, y0 - n))
   | East => checkBounds(g, (x0 + n, y0))
   | West => checkBounds(g, (x0 - n, y0))
-
+  
 (* Evaluate a statement *)
 fun evalStmt (s: state, Stop) = s
   | evalStmt (s: state, While x) =
       evalWhile(s, While x)
   | evalStmt ((board, pos, buf): state, Move (dir, num)) =
       (board, move(board, pos, evalExp(buf, num), dir), buf)
-  | evalStmt ((board, pos, buf): state, Assign x) =
-      (board, pos, buf_set(buf, x))
+  | evalStmt ((board, pos, buf): state, Assign (k, v)) =
+      (board, pos, buf_set(buf, (k, Number (evalExp(buf, v)))))
 and evalWhile ((board, pos, buf): state, While (cond, statements)) =
   if evalExp(buf, BooleanExp cond) = 0 then (board, pos, buf) 
   else evalWhile(evalStmtList((board, pos, buf), statements), While (cond, statements))
 and evalStmtList (s: state, []: stmt list) = s
   | evalStmtList (s: state, (Stop::xs): stmt list) = s 
   | evalStmtList (s: state, (x::xs): stmt list) =
-      evalStmtList(evalStmt(s, x), xs) 
+      evalStmtList(evalStmt(s, x), xs)
 
 (* Get the position of a state *)
 fun get_pos((board, pos, buf): state) : position = pos
@@ -103,6 +105,9 @@ fun get_pos((board, pos, buf): state) : position = pos
 fun interpret ((g: grid, (decls, p: position, stmtlst): robot): program) = 
   let val startState : state = (g, p, decls)
   in get_pos(evalStmtList(startState, stmtlst)) end
+  handle OutOfBoundsException pos => 
+    (print "Robot fell of grid!\n"; (pos))
+
 
 (* program - Tests *)
 val test1 : program =
@@ -152,7 +157,7 @@ val test3 : program =
      Move (East, Number 4),
      While (LargerThan 
               (Ident "j", Number 0),
-            [Stop, Move (South, Ident "j"),
+            [Move (South, Ident "j"),
              Assign ("j", ArithExp 
                           (Minus 
                             (Ident "j", Number 1)))]),
@@ -166,33 +171,3 @@ val test4 : program =
             (Ident "j", Number 0),
              [Move (North, Ident "j")]),
      Stop]))
-(* End - Tests *)
-
-(* evalExp - Tests
-val buf : buffer = [("x", Number 10)];
-val a : exp = Ident "x";
-evalExp (buf, a);
-val b : exp = (Number 7);
-evalExp (buf, b);
-val c : exp = ArithExp (Plus (Number 5, Ident "x"));
-evalExp (buf, c);
-val d : exp = ArithExp (Minus (Ident "x", Number 5));
-evalExp (buf, d);
-val e : exp = ArithExp (Multiply (Number 10, Ident "x"));
-evalExp (buf, e);
-val f : exp = BooleanExp (LessThan (Number 5, Ident "x"));
-evalExp (buf, f);
-val g : exp = BooleanExp (LargerThan (Number 5, Ident "x"));
-evalExp (buf, g);
-val h : exp = BooleanExp (Equal (Number 5, Ident "x"));
-evalExp (buf, h);
-val i : exp = BooleanExp (Equal (Number 10, Ident "x"));
-evalExp (buf, i);
-End - Tests *)
-
-(* move - Tests 
-val moveA = move ((64, 64), (32, 32), 10, North)
-val moveB = move ((64, 64), (32, 32), 10, South)
-val moveC = move ((64, 64), (32, 32), 10, East)
-val moveD = move ((64, 64), (32, 32), 10, West)
-End - Tests *)
