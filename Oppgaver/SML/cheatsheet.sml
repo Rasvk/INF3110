@@ -412,7 +412,6 @@ fun equals_five reference = !reference = 5
 fun decrement_to_zero r = if !r < 0
                           then r := 0
                           else while !r >= 0 do r := !r - 1
-
 (* This returns the unit value (in practical terms, nothing, a 0-tuple) *)
 
 (* To allow returning a value, we can use the semicolon to sequence evaluations *)
